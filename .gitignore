@@ -192,3 +192,56 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+
+# ===================================================================
+# ANALYSIS PROJECT SPECIFIC
+# ===================================================================
+
+# Simulation data and network files
+*.json                     # UESGraph network files (enthalten Firmen-Daten)
+*.csv                      # Simulation results, pipe catalogs
+*.xlsx                     # Excel reports mit echten Daten
+*.xls                      # Alte Excel files
+*.parquet                  # Simulation data files
+*.pickle                   # Serialized Python objects
+*.pkl                      # Pickle files
+
+# Simulation and analysis output directories
+data/                      # Input data directory
+outputs/                   # All analysis outputs
+results/                   # Results directory
+reports/                   # Generated reports
+plots/                     # Generated plots and figures
+velocity_analysis/         # Velocity analysis outputs
+temp/                      # Temporary files
+scenario_*/               # Scenario-specific output folders
+
+# Images and plots with real data
+*.png                      # Generated plots
+*.pdf                      # PDF reports/plots
+*.svg                      # Vector graphics
+*.jpg                      # Images
+*.jpeg                     # Images
+*.gif                      # Animated plots
+
+# Local configuration files with real paths
+config_local.py           # Local config with real file paths
+local_config.py           # Alternative naming
+*_local.py                # Any local configuration files
+local_*.py                # Local configuration files
+
+# UESGraphs and simulation specific
+Prio*/                    # Project directories (like Prio1_npro_complete_sfh)
+Sim*/                     # Simulation result directories
+*_inputs/                 # Simulation input directories
+*_outputs/                # Simulation output directories
+
+# Analysis cache and temporary files
+.analysis_cache/          # Custom cache directory
+*.cache                   # Cache files
+analysis_temp/            # Temporary analysis files
+
+# ===================================================================
+# END ANALYSIS SPECIFIC
+# ===================================================================
