@@ -2,7 +2,8 @@ import pandas as pd
 import re
 from typing import Callable, Optional
 from functools import reduce
-
+import logging
+import tempfile
 import os
 
 def load_pipe_catalog(catalog_name: str = "isoplus",custom_path: Optional[str] = None) -> pd.DataFrame:
@@ -92,3 +93,56 @@ def load_pipe_catalog(catalog_name: str = "isoplus",custom_path: Optional[str] =
         raise ValueError(f"Catalog file '{catalog_name}' is empty or contains no valid data")
     except pd.errors.ParserError as e:
         raise ValueError(f"Error parsing catalog file '{catalog_name}': {str(e)}")
+
+
+
+def set_up_terminal_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """Set up a terminal-only logger for small helper functions."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.propagate = False  # Prevent double output
+    
+    # Remove existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    # Add console handler
+    console_handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    return logger
+
+def set_up_file_logger(name: str, log_dir: Optional[str] = None, 
+                      level: int = logging.ERROR) -> logging.Logger:
+    """Set up a file logger for major functions."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.propagate = False
+    
+    # Remove existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    if log_dir is None:
+        log_dir = tempfile.gettempdir()
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = os.path.join(log_dir, f"{name}_{timestamp}.log")
+    
+    # File handler
+    file_handler = logging.FileHandler(log_file)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - [%(filename)s:%(lineno)d] - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    # Console handler for warnings and errors
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    console_formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
+    
+    logger.info(f"Log file created: {log_file}")
+    return logger
