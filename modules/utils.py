@@ -62,7 +62,7 @@ def load_pipe_catalog(catalog_name: str = "isoplus",custom_path: Optional[str] =
     else:
         # Einfacher relativer Pfad
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        catalog_path = os.path.join(current_dir, "..", "data", "pipe_catalogs", f"{catalog_name}.csv")
+        catalog_path = os.path.join(current_dir, "..", "data", f"{catalog_name}.csv")
     
     # Convert to absolute path for better error reporting
     catalog_path = os.path.abspath(catalog_path)    
