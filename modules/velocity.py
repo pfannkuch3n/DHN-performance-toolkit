@@ -171,8 +171,8 @@ def assign_DN_classifications(graph: 'ug.UESGraph', catalog: str = "isoplus",
     catalog : str
         Either catalog name or path to catalog CSV
     classification_mode : str, optional
-        🎯 "strict": Prefers smaller DN (conservative for safety/pressure)
-        🚀 "generous": Prefers larger DN (optimistic for flow capacity)
+        "strict": Prefers smaller DN (conservative for safety/pressure)
+        "generous": Prefers larger DN (optimistic for flow capacity)
     tolerance : float, optional
         Base tolerance around catalog diameters (default: 0.05 = ±5%)
     logger : logging.Logger, optional
@@ -257,7 +257,7 @@ def assign_DN_classifications(graph: 'ug.UESGraph', catalog: str = "isoplus",
     
     # Log results
     total_classified = sum(len(pipes) for pipes in DN_pipes.values())
-    logger.info(f"✅ Classification: {total_classified}/{len(graph.edges)} pipes (100% success)")
+    logger.info(f"SUCCESS: Classification: {total_classified}/{len(graph.edges)} pipes (100% success)")
     
     # Log DN distribution
     for dn, count in classification_stats.items():
@@ -270,9 +270,9 @@ def assign_DN_classifications(graph: 'ug.UESGraph', catalog: str = "isoplus",
         fallbacks = [f for f in fallback_used if f[4] == "fallback"]
         
         if ambiguous:
-            logger.info(f"📊 {len(ambiguous)} ambiguous cases (chose {'smaller' if prefer_smaller else 'larger'} DN)")
+            logger.info(f"INFO: {len(ambiguous)} ambiguous cases (chose {'smaller' if prefer_smaller else 'larger'} DN)")
         if fallbacks:
-            logger.info(f"🔄 {len(fallbacks)} fallback cases (chose {'next smaller' if prefer_smaller else 'next larger'} DN)")
+            logger.info(f"INFO: {len(fallbacks)} fallback cases (chose {'next smaller' if prefer_smaller else 'next larger'} DN)")
             
         # Show examples
         for edge, diameter, options, chosen, reason in fallback_used[:3]:
@@ -287,12 +287,12 @@ def assign_DN_classifications(graph: 'ug.UESGraph', catalog: str = "isoplus",
 # Convenience functions  
 def assign_DN_strict(graph: 'ug.UESGraph', catalog: str = "isoplus", tolerance: float = 0.05,
                     logger: Optional[logging.Logger] = None) -> Tuple['ug.UESGraph', Dict[str, set]]:
-    """🎯 Conservative DN classification - smaller DN for safety, 100% coverage guaranteed"""
+    """Conservative DN classification - smaller DN for safety, 100% coverage guaranteed"""
     return assign_DN_classifications(graph, catalog, "strict", tolerance, logger)
 
 def assign_DN_generous(graph: 'ug.UESGraph', catalog: str = "isoplus", tolerance: float = 0.05,
                       logger: Optional[logging.Logger] = None) -> Tuple['ug.UESGraph', Dict[str, set]]:
-    """🚀 Optimistic DN classification - larger DN for capacity, 100% coverage guaranteed"""  
+    """Optimistic DN classification - larger DN for capacity, 100% coverage guaranteed"""  
     return assign_DN_classifications(graph, catalog, "generous", tolerance, logger)
 
 def calculate_velocities(graph: 'ug.UESGraph', fluid_properties: Optional[Dict] = None,
@@ -909,22 +909,29 @@ def plot_network_velocity_analysis(graph: 'ug.UESGraph', analysis_metric: str = 
         
         # Create visualization using uesgraphs
         vis = ug.Visuals(graph)
-        
+
+        # Create descriptive labels that include constraint type
+        constraint_label = "Max Velocity" if constraint_type == "max" else "Min Velocity"
+
         ylabel_map = {
-            "mean_deviation": "Mean Deviation [m/s]",
-            "cum_error": "Cumulative Error",
-            "total_duration": "Violation Duration [hours]"
+            "mean_deviation": f"Mean Deviation [m/s] ({constraint_label})",
+            "cum_error": f"Cumulative Error ({constraint_label})",
+            "total_duration": f"Violation Duration [hours] ({constraint_label})"
         }
-        
+
         ylabel = ylabel_map.get(analysis_metric, analysis_metric.title())
-        
+
+        # Create title with both metric and constraint type
+        network_name = graph.graph.get("name", "Network")
+        plot_title = f'{network_name} - {analysis_metric} ({constraint_type} violations)'
+
         fig = vis.show_network(
-            show_plot=True,
+            show_plot=False,  # Don't block execution, just save
             scaling_factor=10,
             scaling_factor_diameter=50,
             ylabel=ylabel,
             generic_extensive_size="stats",
-            timestamp=f'{graph.graph.get("name", "Network")} - {analysis_metric}',
+            timestamp=plot_title,
             zero_alpha=0.4,
             save_as=save_path
         )
@@ -976,16 +983,30 @@ def plot_velocity_vs_diameter_simple(graph: 'ug.UESGraph',
     # Prepare network data
     network_data = []
     max_diameter_mm = 0
-    
+
+    # Track why edges are skipped for better error reporting
+    missing_DN_count = 0
+    missing_velocity_count = 0
+    successful_count = 0
+
     for edge in graph.edges:
         try:
-            if "DN" not in graph.edges[edge] or "velocity" not in graph.edges[edge]:
+            # Check for required attributes with detailed logging
+            has_DN = "DN" in graph.edges[edge]
+            has_velocity = "velocity" in graph.edges[edge]
+
+            if not has_DN:
+                missing_DN_count += 1
+            if not has_velocity:
+                missing_velocity_count += 1
+
+            if not has_DN or not has_velocity:
                 continue
-                
+
             diameter_mm = graph.edges[edge]["diameter"] * 1000
             max_diameter_mm = max(max_diameter_mm, diameter_mm)
             velocity_series = graph.edges[edge]["velocity"]
-            
+
             # Calculate metrics
             edge_data = {
                 "edge": edge,
@@ -997,14 +1018,20 @@ def plot_velocity_vs_diameter_simple(graph: 'ug.UESGraph',
                 "p95": velocity_series.quantile(0.95),
                 "p99": velocity_series.quantile(0.99)
             }
-            
+
             network_data.append(edge_data)
-                    
+            successful_count += 1
+
         except Exception as e:
             logger.warning(f"Error processing edge {edge}: {e}")
-    
+
     if not network_data:
-        logger.error("No valid network data found")
+        logger.error("No valid network data found for plotting")
+        logger.error(f"Total edges checked: {len(graph.edges)}")
+        logger.error(f"Edges missing 'DN' attribute: {missing_DN_count}")
+        logger.error(f"Edges missing 'velocity' attribute: {missing_velocity_count}")
+        logger.error(f"Successfully processed edges: {successful_count}")
+        logger.error("Plot function requires both 'DN' and 'velocity' attributes on edges")
         return
     
     logger.info(f"Plotting {len(network_data)} pipes, max diameter: {max_diameter_mm:.1f}mm")
@@ -1134,8 +1161,8 @@ def plot_velocity_vs_diameter_simple(graph: 'ug.UESGraph',
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         logger.info(f"Plot saved to: {save_path}")
-    
-    plt.show()
+    else:
+        plt.show()
     
     logger.info(f"Plot completed: {in_zone_count}/{total_pipes} pipes in manufacturer zone")
 
